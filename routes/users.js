@@ -2,23 +2,19 @@ var express = require('express');
 var router = express.Router();
 var bcrypt = require('bcrypt');
 var jwt = require('jsonwebtoken');
-var passport = require('passport');
-var passportJWT = require('passport-jwt');
 
 // require other modules
 var User = require('../models/users');
 var dbFunctions = require('../db_functions/users');
-
-// jwt stuff for authentication
-var startegy = require('../jwt/config').startegy;
-var jwtOptions = require('../jwt/config').jwtOptions;
-var authenticate = passport.authenticate('jwt', {session: false});
+var auth = require("../jwt/auth.js")();  
+var config = require("../jwt/config");
+router.use(auth.initialize());
 
 /* GET users listing. */
-router.get('/', authenticate, function(req, res, next) {
+router.get('/', function(req, res, next) {
   
   dbFunctions.findOne(req.user.username, function(err, user) {
-  	res.send({name: user.name, username: user.username, bills: user.bills});
+  	res.send({name: user.name, username: user.username});
   });
 
 });
@@ -27,23 +23,25 @@ router.get('/', authenticate, function(req, res, next) {
 /* POST login for user */
 router.post('/login', function(req, res, next) {
 	console.log('attempt to login')
+	console.log(req.body)
 	if (!req.body.username || !req.body.password){
+		console.log('missing fields');
 		return res.sendStatus(404);
 	}
-
-	dbFunctions.findOne(req.body.username, function(err, user) {
-		console.log('this is the current user ', user)
-		if (user){
-			var compare = bcrypt.compareSync(req.body.password, user.password);
-			console.log('compare result ', compare);
-			var payload = {id: user.username};
-			var token = jwt.sign(payload, jwtOptions.secretOrKey);
-			res.status(200).json({message: "ok", token: token});
+	User.findOne({username: req.body.username}, function(err, user) {
+		if (!user){
+			console.log("!user");
+			res.status(404).json({mesage: "no such user"});
 		} else {
-			// no user found, but also unauthorized
-			res.status(401).json({message: "passwords did not match or no such user"});
+			bcrypt.compare(req.body.password, user.password, function(err, result) {
+			    // result == true
+			    console.log(user.username)
+			    var token = jwt.sign({id: user.id}, config.secret, { expiresIn: 10080 }); //seconds
+	          	res.status(200).json({ success: true, token: 'JWT ' + token });
+			});
 		}
-	});
+
+	})
 });
 
 /* Create new user. */
