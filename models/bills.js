@@ -2,7 +2,6 @@ var mongoose = require('mongoose');
 var Schema = mongoose.Schema;
 
 var dbFunctions = require('../db_functions/users');
-// maybe add bcrypt here to hash password in pre-save?
 
 var billSchema = new Schema({
     payee: { type: String, ref: 'User' },
@@ -10,25 +9,24 @@ var billSchema = new Schema({
     title: String,
     body: String,
     amount: Number,
+    date: Date
 });
 
 // pre-save middleware
-billSchema.pre('save', function(next) {
-	var err = new Error('missing some fields, check the form you submitted');
-	if (!this.payee || !this.payer || !this.title || !this.amount){
-		next(err);
+billSchema.pre('validate', function(next) {
+	var emptyField = new Error('one of the required fields is empty');
+	if(!this.payee || !this.payer || !this.title || !this.amount){
+		next(emptyField);
 	}
-	dbFunctions.findOne(this.payee, function(err, user) {
-		if (!user){
-			next(err);
-		}
+	// verify that both users exist
+	dbFunctions.verifyUsers(this.payer, this.payee, function(err, both) {
+		if (err) next(err);
+		if (!both) next(err);
 	});
-	dbFunctions.findOne(this.payer, function(err, user) {
-		if (!user){
-			next(err);
-		}
-	});
+});
 
+billSchema.pre('save', function(next) {
+	this.date = new Date();
 	next();
 });
 

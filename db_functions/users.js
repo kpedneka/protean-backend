@@ -4,8 +4,12 @@ var User = require('../models/users');
 exports.findOne = function(username, callback) {
 	User.findOne({username: username})
 	.then(function(user) {
-		console.log('found user ', user.username)
-		return callback(null, user);
+		if (user){
+			console.log('found user ', user.username)
+			return callback(null, user);
+		}
+		var noUser = new Error('no such user')
+		return callback(noUser, null);
 	})
 	.catch(function(err) {
 		console.log('err is ', err)
@@ -13,14 +17,29 @@ exports.findOne = function(username, callback) {
 	})
 };
 
+exports.verifyUsers = function(user1, user2, callback) {
+	User.find({username: {$in: [user1, user2]}})
+		.then(function(users) {
+			if (users.length === 2){
+				callback(null, true);
+			}
+			var invalidUser = new Error('one or both users were not found');
+			callback(invalidUser, false);
+		})
+		.catch(function(err) {
+			callback(err, false);
+		})
+}
+
 // intended to be used by form to create new user
 exports.create = function(user, callback) {
-	User.find({username: user.username})
+	User.findOne({username: user.username})
 	.then(function(user){
 		if(!user){
 			console.log('creating new user')
 			var newUser = new User(user);
-			user.save()
+			console.log(user)
+			newUser.save()
 			return callback(null, user);
 		} else {
 			var err = new Error('username already exists')

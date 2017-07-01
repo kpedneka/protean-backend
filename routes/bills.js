@@ -2,9 +2,6 @@ var express = require('express');
 var router = express.Router();
 var bodyParser = require('body-parser');
 var expressValidator = require('express-validator');
-var jwt = require('jsonwebtoken');
-var passport = require('passport');
-var passportJWT = require('passport-jwt');
 
 // importing user model
 var Bill = require('../models/bills');
@@ -15,24 +12,19 @@ var dbFunctions = require('../db_functions/bills');
 router.use(bodyParser.json());
 router.use(expressValidator());
 
-// jwt stuff
-var startegy = require('../jwt/config').startegy;
-var jwtOptions = require('../jwt/config').jwtOptions;
-
-var authenticate = passport.authenticate('jwt', {session: false});
 
 /* GET all bills. */
-router.get('/', authenticate, function(req, res, next) {
-  
-  dbFunctions.findFrom(req.user._id, function(err, bills) {
+router.get('/',  function(req, res, next) {
+  console.log('I am here \n\n\n')
+  dbFunctions.findMyBills('kpedneka', function(err, bills) {
     if (err) return res.sendStatus(500);
-    res.status(200).json(bills);
+    res.send(bills);
   });
   
 });
 
 /* POST new bill. */
-router.post('/', authenticate, function(req, res, next) {
+router.post('/',  function(req, res, next) {
   
   var newBill = {
     payee: req.body.payee,

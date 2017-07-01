@@ -4,22 +4,23 @@ var bcrypt = require('bcrypt');
 
 
 var userSchema = new Schema({
-    name: String,
-    username: {type: String, unique: true},
-    password: String
+	facebook: {
+		id: String,
+		accessToken: String,
+		name: String,
+		email: String
+	}
 });
 
 // maybe add some pre-save middleware here
 userSchema.pre('save', function(next) {
-	var err = new Error('missing some fields, check the form you submitted');
-	if (!this.name || !this.username || !this.password){
-		return next(err);
-	}
-	// encrypt password
-	const saltRounds = 10;
-	var hash = bcrypt.hashSync(this.password, saltRounds);
-	this.password = hash;
+	console.log("In pre save function")
 
+	// var err = new Error('missing some fields, check the form you submitted');
+	// if (!this.facebook.name || !this.facebook.id || !this.facebook.email || !this.facebook.accessToken){
+	// 	return next(err);
+	// }
+	console.log('success')
 	next();
 });
 

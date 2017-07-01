@@ -1,66 +1,62 @@
 var express = require('express');
+var session = require('express-session');
 var router = express.Router();
-var bcrypt = require('bcrypt');
-var jwt = require('jsonwebtoken');
+var passport = require('passport');
+// var facebookStrategy = require('passport-facebook').Strategy;
 
-// require other modules
+// keep APP ID and APP SECRET safe, do not share this information.
 var User = require('../models/users');
-var dbFunctions = require('../db_functions/users');
-var auth = require("../jwt/auth.js")();  
-var config = require("../jwt/config");
-router.use(auth.initialize());
-
-/* GET users listing. */
-router.get('/', function(req, res, next) {
-  
-  dbFunctions.findOne(req.user.username, function(err, user) {
-  	res.send({name: user.name, username: user.username});
-  });
-
-});
+// contains app id, app secret, callbackurl
+var facebookAuth = require('../config/auth').facebookAuth;
+// conains all the logic for facebook login
+var facebookLogin = require('../config/passport');
+facebookLogin(passport);
 
 
-/* POST login for user */
-router.post('/login', function(req, res, next) {
-	console.log('attempt to login')
-	console.log(req.body)
-	if (!req.body.username || !req.body.password){
-		console.log('missing fields');
-		return res.sendStatus(404);
+// middleware function to check if a user is authenticated
+function isLoggedIn(req, res, next) {
+	if (req.isAuthenticated()) {
+		console.log('user is authenticated');
+		next();
+	} else {
+		console.log('user is not authenticated');
+		res.redirect('/api/users/login');
 	}
-	User.findOne({username: req.body.username}, function(err, user) {
-		if (!user){
-			console.log("!user");
-			res.status(404).json({mesage: "no such user"});
-		} else {
-			bcrypt.compare(req.body.password, user.password, function(err, result) {
-			    // result == true
-			    console.log(user.username)
-			    var token = jwt.sign({id: user.id}, config.secret, { expiresIn: 10080 }); //seconds
-	          	res.status(200).json({ success: true, token: 'JWT ' + token });
-			});
-		}
+}
 
-	})
+//applying middleware for passport and storing the access tokens
+router.use(session({ secret: require('../config/session').sessionSecret }));
+router.use(passport.initialize());
+router.use(passport.session());
+
+/* when a user clicks log in with facebook, they will be using this route to sign in with facebook */
+router.get('/auth', passport.authenticate('facebook', {scope: ['email']}), function(req, res, next) {
+	res.sendStatus(200);
 });
 
-/* Create new user. */
-router.post('/', function(req, res, next) {
-	var newUser = new User({
-		name: req.body.name,
-	    username: req.body.username,
-	    password: req.body.password,
-	});
-	console.log('created new object for ', newUser.username);
-	dbFunctions.create(newUser, function(err, done){
-		if (err){
-			console.log(err);
-			return res.sendStatus(500);
-		}
-		// could be 201 or 304
-		res.sendStatus(done);
-	})
+
+/* callback URL route that facebook ruturns to after authenticating the user */
+router.get('/callback', passport.authenticate('facebook', { successRedirect: '/api/users/profile', failureRedirect: '/api/users/login'}), function(req, res, next) {
+	// some stuff that will never hit
+	res.sendStatus(200);
 });
 
+
+/* Login page that user lands on when accesstoken is not valid */
+router.get('/login', function(req, res, next) {
+	res.send('Failed to log in using facebook');
+});
+
+/* Logout action that deletes session and redirects to the login route */
+router.get('/logout', function(req, res, next) {
+	req.logout();
+	res.redirect('/api/users/login');
+});
+
+
+/* After successful login, display user data for the dashboard */
+router.get('/profile', isLoggedIn, function(req, res, next) {
+	res.send(req.user);
+});
 
 module.exports = router;

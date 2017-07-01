@@ -2,3 +2,5 @@
 jwt/config.js
 node_modules/*
 notes.txt
+config/auth.js
+config/session.js

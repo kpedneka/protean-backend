@@ -4,28 +4,18 @@ var Mongoose = require('mongoose');
 
 
 // intended to be used to find a bill that belongs to a particular user (from only)
-exports.findFrom = function(username, callback) {
-	// Bill.find({payer: username}, function(err, users){
-	// 	if (err){
-	// 		callback(err, null);
-	// 	}
-	// 	callback(null, users);
-	// })
-	Bill.find({payer: username})
-	.then(function(bills) {
-		
+exports.findMyBills = function(username, callback) {
+	console.log('here are my bills')
+	Bill.find({ $or: [ {payer: username}, {payee: username}]})
+	// desc means latest first
+	.sort({date: 'desc'})
+	.then(bills => {
+		return callback(null, bills);
 	})
-};
-
-// intended to be used to find a bill that belongs to a particular user (to only)
-exports.findTo = function(username, callback) {
-	Bill.find({payee: username}, function(err, bills){
-		if (err){
-			callback(err, null);
-		}
-		callback(null, bills);
-	})
-};
+	.catch(err => {
+		return callback(err, null);
+	});
+}
 
 // intended to be used by form to create new bill
 exports.create = function(bill, callback) {
